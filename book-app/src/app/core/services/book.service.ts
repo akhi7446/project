@@ -4,6 +4,29 @@ import { environment } from '../../environments/environment';
 import { Book, Author, Category, ExternalBook } from '../models/models';
 import { Observable } from 'rxjs';
 
+// 🔹 DTO returned by backend (full BookRequest)
+export interface BookRequest {
+  id: number;
+  title: string;
+  authorName: string;
+  description: string;
+  coverImageUrl: string;
+  genre: string;
+  price: number;
+  status: string;       // Pending, Approved, Rejected
+  requestedById: number;
+}
+
+// 🔹 DTO for creating a new request (what Author submits)
+export interface CreateBookRequest {
+  title: string;
+  authorName: string;
+  description: string;
+  coverImageUrl?: string;
+  genre: string;
+  price: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class BookService {
   private api = `${environment.apiUrl}/Book`;
@@ -41,8 +64,24 @@ export class BookService {
     return this.http.get<Book[]>(`${this.api}/filter`, { params });
   }
 
-  create(book: Partial<Book>): Observable<Book> {
-    return this.http.post<Book>(this.api, book);
+  // ✅ Admin: Create book (supports file upload)
+  create(book: any, file?: File): Observable<Book> {
+    if (file) {
+      const formData = new FormData();
+      formData.append('title', book.title || '');
+      formData.append('authorName', book.authorName || '');
+      formData.append('description', book.description || '');
+      formData.append('genre', book.genre || '');
+      formData.append('price', (book.price ?? 0).toString());
+      if (book.coverImageUrl) {
+        formData.append('coverImageUrl', book.coverImageUrl);
+      }
+      formData.append('file', file);
+
+      return this.http.post<Book>(this.api, formData);
+    } else {
+      return this.http.post<Book>(this.api, book);
+    }
   }
 
   update(id: number, book: Partial<Book>): Observable<Book> {
@@ -80,8 +119,33 @@ export class BookService {
     if (subject) params = params.set('subject', subject);
     params = params.set('limit', limit.toString()).set('offset', offset.toString());
 
-    return this.http.get<ExternalBook[]>(`${this.api}/external-search`, {
-      params,
-    });
+    return this.http.get<ExternalBook[]>(`${this.api}/external-search`, { params });
+  }
+
+  // --- 📚 Book Requests (Author & Admin) ---
+
+  // Author submits a request
+  submitBookRequest(request: CreateBookRequest): Observable<BookRequest> {
+    return this.http.post<BookRequest>(`${this.api}/submit`, request);
+  }
+
+  // ✅ Author fetches their own requests
+  getMyBookRequests(): Observable<BookRequest[]> {
+    return this.http.get<BookRequest[]>(`${this.api}/my-requests`);
+  }
+
+  // Admin gets all requests
+  getBookRequests(): Observable<BookRequest[]> {
+    return this.http.get<BookRequest[]>(`${this.api}/requests`);
+  }
+
+  // Admin approves a request
+  approveBookRequest(id: number): Observable<BookRequest> {
+    return this.http.put<BookRequest>(`${this.api}/requests/${id}/approve`, {});
+  }
+
+  // Admin rejects a request
+  rejectBookRequest(id: number): Observable<BookRequest> {
+    return this.http.put<BookRequest>(`${this.api}/requests/${id}/reject`, {});
   }
 }

@@ -16,5 +16,6 @@ namespace BookApp.Api.Models.DTOs
 
         // 🔹 optional: save after upload
         public string? ProfileImageUrl { get; set; }
+        public string Role { get; set; } = "User";
     }
 }

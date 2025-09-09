@@ -9,6 +9,9 @@ import { ProfileComponent } from './components/profile.component';
 import { AdminAddBookComponent } from './components/admin-add-book.component';
 import { authGuard } from './core/guards/auth.guard';
 import { adminGuard } from './core/guards/admin.guard';
+import { AuthorDashboardComponent } from './components/author.component'; // ✅ FIXED import
+import { AdminBookRequestsComponent } from './components/admin-book-requests.component';
+import { AuthorSubmitBookComponent } from './components/author-submit-book.component';
 
 export const routes: Routes = [
   { path: '', component: DashboardComponent }, // default -> dashboard
@@ -16,8 +19,19 @@ export const routes: Routes = [
   { path: 'cart', component: CartComponent, canActivate: [authGuard] },
   { path: 'favorites', component: FavoritesComponent, canActivate: [authGuard] },
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
+
+  // 🔹 Admin-only routes
   { path: 'admin/add-book', component: AdminAddBookComponent, canActivate: [adminGuard] },
+  { path: 'admin/requests', component: AdminBookRequestsComponent, canActivate: [adminGuard] },
+
+  // 🔹 Author-only routes
+  { path: 'author', component: AuthorDashboardComponent },
+  { path: 'author/submit-book', component: AuthorSubmitBookComponent },
+
+  // 🔹 Auth routes
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
-  { path: '**', redirectTo: '', pathMatch: 'full' } // ✅ safer fallback
+
+  // 🔹 Always keep wildcard LAST
+  { path: '**', redirectTo: '', pathMatch: 'full' }
 ];

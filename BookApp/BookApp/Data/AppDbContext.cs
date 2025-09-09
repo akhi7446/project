@@ -15,6 +15,7 @@ namespace BookApp.Api.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Favorite> Favorites { get; set; }  // ✅ Added
+        public DbSet<BookRequest> BookRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FavoriteService } from '../core/services/favorite.service';
 import { RecommendationService } from '../core/services/recommendation.service';
@@ -6,7 +6,7 @@ import { AuthService } from '../core/services/auth.service';
 import { Favorite, Recommendation, ExternalBook, User } from '../core/models/models';
 import { RouterModule, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
@@ -127,7 +127,7 @@ import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
     @keyframes spin { to { transform: rotate(360deg); } }
   `]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   favorites: Favorite[] = [];
   recs: Recommendation[] = [];
   openLibRecs: ExternalBook[] = [];
@@ -138,6 +138,7 @@ export class DashboardComponent implements OnInit {
 
   private cache: { [query: string]: ExternalBook[] } = {};
   private searchQueryChanged = new Subject<string>();
+  private subs: Subscription[] = [];
 
   constructor(
     private favoriteService: FavoriteService,
@@ -149,11 +150,12 @@ export class DashboardComponent implements OnInit {
     this.currentUser = this.auth.currentUser;
 
     // Debounced search handler
-    this.searchQueryChanged
+    const sub = this.searchQueryChanged
       .pipe(debounceTime(500), distinctUntilChanged())
       .subscribe(query => {
         if (query.trim()) this.loadOpenLibRecs(query.trim());
       });
+    this.subs.push(sub);
 
     // Load favorites & authors
     this.favoriteService.getFavorites().subscribe({
@@ -179,9 +181,14 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.subs.forEach(s => s.unsubscribe());
+  }
+
   private loadOpenLibRecs(query: string) {
-    if (this.cache[query]) {
-      this.openLibRecs = this.cache[query];
+    const key = query.toLowerCase();
+    if (this.cache[key]) {
+      this.openLibRecs = this.cache[key];
       return;
     }
 
@@ -189,7 +196,7 @@ export class DashboardComponent implements OnInit {
     this.recService.getOpenLibraryRecommendations(query, 12).subscribe({
       next: res => {
         this.openLibRecs = res || [];
-        this.cache[query] = this.openLibRecs;
+        this.cache[key] = this.openLibRecs;
         this.loading = false;
       },
       error: () => {

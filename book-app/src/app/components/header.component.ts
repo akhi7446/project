@@ -2,7 +2,6 @@ import { Component, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-import { User } from '../core/models/models';
 
 @Component({
   selector: 'app-header',
@@ -27,15 +26,27 @@ import { User } from '../core/models/models';
 
         <!-- Center: Navigation -->
         <div class="row" style="gap:1rem;">
+          <!-- Common links -->
           <a routerLink="/books" class="link">Books</a>
-          <a routerLink="/favorites" class="link">Favorites</a>
-          <a routerLink="/cart" class="link">Cart</a>
-          <a *ngIf="isAdmin()" routerLink="/admin/add-book" class="link">Admin</a>
+          <a *ngIf="isLoggedIn()" routerLink="/favorites" class="link">Favorites</a>
+          <a *ngIf="isLoggedIn()" routerLink="/cart" class="link">Cart</a>
+
+          <!-- Admin links -->
+          <ng-container *ngIf="isAdmin()">
+            <a routerLink="/admin/add-book" class="link">Add Book</a>
+            <a routerLink="/admin/requests" class="link">Requests</a>
+          </ng-container>
+
+          <!-- Author links -->
+          <ng-container *ngIf="isAuthor()">
+            <a routerLink="/author" class="link">My Dashboard</a>
+            <a routerLink="/author/submit-book" class="link">Submit Book</a>
+          </ng-container>
         </div>
 
         <!-- Right: User / Guest -->
         <div class="row" style="gap:1rem; align-items:center;">
-          <ng-container *ngIf="user(); else guest">
+          <ng-container *ngIf="isLoggedIn(); else guest">
             <a routerLink="/profile" class="link">Profile</a>
             <button class="btn" (click)="logout()">Logout</button>
           </ng-container>
@@ -50,13 +61,16 @@ import { User } from '../core/models/models';
   `
 })
 export class HeaderComponent implements OnInit {
-  user!: typeof this.auth.user;   // declare, but don’t initialize yet
+  user!: typeof this.auth.user;
+
+  // ✅ Role checks
   isAdmin = computed(() => this.user()?.role === 'Admin');
+  isAuthor = computed(() => this.user()?.role === 'Author');
+  isLoggedIn = computed(() => !!this.user());
 
   constructor(private auth: AuthService, private router: Router) {}
 
   ngOnInit(): void {
-    // ✅ now we can safely initialize it
     this.user = this.auth.user;
   }
 

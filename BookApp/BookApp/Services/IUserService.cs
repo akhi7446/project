@@ -11,5 +11,8 @@ namespace BookApp.Api.Services
         Task<User> GetByIdAsync(int id);
         Task<User> UpdateProfileImageAsync(int userId, string imageUrl);
         Task<User> UpdateProfileAsync(int userId, UpdateProfileDto dto);
+
+        // 🔹 New: allow promoting a user to Author
+        Task<User> PromoteToAuthorAsync(int userId);
     }
 }

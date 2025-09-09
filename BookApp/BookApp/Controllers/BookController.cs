@@ -1,7 +1,9 @@
-﻿using BookApp.Api.Models.DTOs;
+﻿using BookApp.Api.Models;
+using BookApp.Api.Models.DTOs;
 using BookApp.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace BookApp.Api.Controllers
 {
@@ -16,7 +18,10 @@ namespace BookApp.Api.Controllers
             _bookService = bookService;
         }
 
-        // 🔹 Get all approved books (public)
+        // ======================================================
+        // 📌 Public Endpoints (Anyone can access approved books)
+        // ======================================================
+
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll()
@@ -25,7 +30,6 @@ namespace BookApp.Api.Controllers
             return Ok(books);
         }
 
-        // 🔹 Get book by ID (only if approved)
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
@@ -35,36 +39,6 @@ namespace BookApp.Api.Controllers
             return Ok(book);
         }
 
-        // 🔹 Add new book directly (Admin only, auto-approved)
-        [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromBody] BookDto dto)
-        {
-            var book = await _bookService.CreateAsync(dto, isApproved: true);
-            return CreatedAtAction(nameof(GetById), new { id = book.Id }, book);
-        }
-
-        // 🔹 Update book (Admin only)
-        [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] BookDto dto)
-        {
-            var updatedBook = await _bookService.UpdateAsync(id, dto);
-            if (updatedBook == null) return NotFound();
-            return Ok(updatedBook);
-        }
-
-        // 🔹 Delete book (Admin only)
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var result = await _bookService.DeleteAsync(id);
-            if (!result) return NotFound();
-            return Ok(new { message = "Book deleted" });
-        }
-
-        // 🔹 Search books by title (only approved books)
         [HttpGet("search")]
         [AllowAnonymous]
         public async Task<IActionResult> Search([FromQuery] string query)
@@ -73,7 +47,6 @@ namespace BookApp.Api.Controllers
             return Ok(books);
         }
 
-        // 🔹 Filter books by author/category/genre/price (only approved books)
         [HttpGet("filter")]
         [AllowAnonymous]
         public async Task<IActionResult> Filter(
@@ -87,23 +60,97 @@ namespace BookApp.Api.Controllers
             return Ok(books);
         }
 
-        // 🔹 Submit book (Author only → requires approval)
+        // ======================================================
+        // 📌 Author Endpoints (Submit requests)
+        // ======================================================
+
         [HttpPost("submit")]
         [Authorize(Roles = "Author")]
-        public async Task<IActionResult> SubmitBook([FromBody] BookDto dto)
+        public async Task<IActionResult> SubmitRequest([FromBody] BookRequest request)
         {
-            var book = await _bookService.CreateAsync(dto, isApproved: false);
-            return Ok(new { message = "Book submitted for review", book });
+            // ✅ Ensure the logged-in user's ID is used
+            var userIdClaim = User.FindFirst("id") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                return Unauthorized(new { message = "User ID not found in token" });
+            }
+
+            request.RequestedById = int.Parse(userIdClaim.Value);
+
+            // ✅ Force status to "Pending" (ignore frontend status)
+            request.Status = "Pending";
+
+            var savedRequest = await _bookService.SubmitRequestAsync(request);
+            return Ok(new { message = "Book request submitted for admin approval", request = savedRequest });
         }
 
-        // 🔹 Approve book (Admin only)
-        [HttpPut("{id}/approve")]
+        // ======================================================
+        // 📌 Admin Endpoints (Manage books + requests)
+        // ======================================================
+
+        [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> ApproveBook(int id)
+        public async Task<IActionResult> Create([FromBody] BookDto dto)
         {
-            var book = await _bookService.ApproveAsync(id);
-            if (book == null) return NotFound();
-            return Ok(new { message = "Book approved", book });
+            var book = await _bookService.CreateAsync(dto, isApproved: true);
+            return CreatedAtAction(nameof(GetById), new { id = book.Id }, book);
         }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, [FromBody] BookDto dto)
+        {
+            var updatedBook = await _bookService.UpdateAsync(id, dto);
+            if (updatedBook == null) return NotFound();
+            return Ok(updatedBook);
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var result = await _bookService.DeleteAsync(id);
+            if (!result) return NotFound();
+            return Ok(new { message = "Book deleted" });
+        }
+
+        [HttpGet("requests")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetPendingRequests()
+        {
+            var requests = await _bookService.GetPendingRequestsAsync();
+            return Ok(requests);
+        }
+
+        [HttpPut("requests/{id}/approve")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ApproveRequest(int id)
+        {
+            var book = await _bookService.ApproveRequestAsync(id);
+            if (book == null) return NotFound();
+            return Ok(new { message = "Book request approved and added to library", book });
+        }
+
+        [HttpPut("requests/{id}/reject")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RejectRequest(int id)
+        {
+            var result = await _bookService.RejectRequestAsync(id);
+            if (!result) return NotFound();
+            return Ok(new { message = "Book request rejected" });
+        }
+        // 🔹 Get all requests submitted by the logged-in Author
+        [HttpGet("my-requests")]
+        [Authorize(Roles = "Author")]
+        public async Task<IActionResult> GetMyRequests()
+        {
+            // Get current logged-in user Id
+            var userId = int.Parse(User.FindFirst("id").Value);
+
+            var requests = await _bookService.GetRequestsByUserIdAsync(userId);
+            return Ok(requests);
+        }
+
+
     }
 }

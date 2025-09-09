@@ -26,6 +26,10 @@ namespace BookApp.Api.Services
             if (await _context.Users.AnyAsync(u => u.Username == request.Username))
                 throw new Exception("Username is already taken.");
 
+            // ✅ Allow only "User" or "Author". Default = "User"
+            var allowedRoles = new[] { "User", "Author" };
+            var role = allowedRoles.Contains(request.Role) ? request.Role : "User";
+
             var user = new User
             {
                 Username = request.Username,
@@ -33,10 +37,9 @@ namespace BookApp.Api.Services
                 LastName = request.LastName,
                 PhoneNumber = request.PhoneNumber,
                 Email = request.Email,
-                // ✅ Use BCrypt for hashing
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), // Secure password
                 ProfileImageUrl = request.ProfileImageUrl,
-                Role = "User"
+                Role = role
             };
 
             _context.Users.Add(user);
@@ -86,6 +89,20 @@ namespace BookApp.Api.Services
 
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
+            return user;
+        }
+
+        // 🔹 Promote user to Author
+        public async Task<User> PromoteToAuthorAsync(int userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new Exception("User not found");
+
+            user.Role = "Author";
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
             return user;
         }
     }

@@ -138,6 +138,66 @@ namespace BookApp.Api.Services
             return book;
         }
 
+        // ================================
+        // 📌 BOOK REQUESTS (Author submits, Admin reviews)
+        // ================================
+
+        // Author → Submit Book Request
+        public async Task<BookRequest> SubmitRequestAsync(BookRequest request)
+        {
+            request.Status = "Pending";
+            _context.BookRequests.Add(request);
+            await _context.SaveChangesAsync();
+            return request;
+        }
+
+        // Admin → Get all pending requests
+        public async Task<IEnumerable<BookRequest>> GetPendingRequestsAsync()
+        {
+            return await _context.BookRequests
+                .Include(r => r.RequestedBy)
+                .Where(r => r.Status == "Pending")
+                .ToListAsync();
+        }
+
+        // Admin → Approve request (move to Books)
+        public async Task<Book?> ApproveRequestAsync(int requestId)
+        {
+            var req = await _context.BookRequests
+                .Include(r => r.RequestedBy)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
+
+            if (req == null) return null;
+
+            req.Status = "Approved";
+
+            var book = new Book
+            {
+                Title = req.Title,
+                Description = req.Description,
+                Genre = req.Genre,
+                Price = req.Price,
+                ImageUrl = req.CoverImageUrl,
+                AuthorId = req.RequestedById,
+                IsApproved = true
+            };
+
+            _context.Books.Add(book);
+            await _context.SaveChangesAsync();
+            return book;
+        }
+
+        // Admin → Reject request
+        public async Task<bool> RejectRequestAsync(int requestId)
+        {
+            var req = await _context.BookRequests.FindAsync(requestId);
+            if (req == null) return false;
+
+            req.Status = "Rejected";
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         // 🔹 Helper: map entity → DTO
         private static BookDto MapToDto(Book book) =>
             new BookDto
@@ -154,5 +214,11 @@ namespace BookApp.Api.Services
                 ImageUrl = book.ImageUrl,
                 IsApproved = book.IsApproved
             };
+        public async Task<IEnumerable<BookRequest>> GetRequestsByUserIdAsync(int userId)
+        {
+            return await _context.BookRequests
+                .Where(r => r.RequestedById == userId)
+                .ToListAsync();
+        }
     }
 }

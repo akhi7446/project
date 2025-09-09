@@ -47,25 +47,32 @@ export class AuthService {
       switchMap(res => {
         console.log('Login response:', res);
 
-        // Minimal user with token (id will be updated when profile loads)
+        // Minimal user with token
         const user: User = {
           id: 0,
           username,
           email: '',
           token: res.token,
           phoneNumber: '',
-          profileImageUrl: null
+          profileImageUrl: null,
+          role: undefined
         };
 
         this.writeUser(user);
 
         // 🔹 Fetch profile right after login
-        return this.getProfile().pipe(map(() => this.currentUser!));
+        return this.getProfile().pipe(
+          map(() => {
+            const finalUser = this.currentUser!;
+            console.log('Final logged in user with role:', finalUser);
+            return finalUser;
+          })
+        );
       })
     );
   }
 
-  /** ✅ Register */
+  /** ✅ Register (only User & Author allowed) */
   register(
     username: string,
     email: string,
@@ -73,27 +80,35 @@ export class AuthService {
     firstName: string,
     lastName: string,
     phoneNumber: string,
+    role: 'User' | 'Author',
     imageFile?: File
   ): Observable<User> {
     const formData = new FormData();
     formData.append('Username', username);
     formData.append('Email', email);
     formData.append('Password', password);
-    formData.append('FirstName', firstName || '');
-    formData.append('LastName', lastName || '');
-    formData.append('PhoneNumber', phoneNumber || '');
-    if (imageFile) formData.append('File', imageFile);
+    formData.append('FirstName', firstName);
+    formData.append('LastName', lastName);
+    formData.append('PhoneNumber', phoneNumber);
+    formData.append('Role', role); // backend requires this
+    if (imageFile) {
+      formData.append('File', imageFile, imageFile.name);
+    }
 
-    return this.http.post<User>(`${this.api}/register`, formData).pipe(
-      tap(u => {
-        const enriched: User = {
-          ...u,
-          phoneNumber: u.phoneNumber || phoneNumber,
-          profileImageUrl: u.profileImageUrl || null
-        };
-        this.writeUser(enriched);
-      })
-    );
+    return this.http
+      .post<{ message: string; user: User }>(`${this.api}/register`, formData)
+      .pipe(
+        map(res => res.user), // unwrap the "user"
+        tap(u => {
+          const enriched: User = {
+            ...u,
+            phoneNumber: u.phoneNumber || phoneNumber,
+            profileImageUrl: u.profileImageUrl || null,
+            role: (u.role as 'User' | 'Author') || role || 'User'
+          };
+          this.writeUser(enriched);
+        })
+      );
   }
 
   /** ✅ Get Profile */
@@ -101,16 +116,25 @@ export class AuthService {
     return this.http.get<User>(`${this.api}/profile`).pipe(
       tap(u => {
         console.log('Profile API returned', u);
+
+        // Merge profile with existing token
         const merged: User = { ...(this.currentUser || {}), ...u };
+
+        // Ensure role is saved correctly
+        merged.role = (u.role as 'User' | 'Author') || this.currentUser?.role || 'User';
+
         this.writeUser(merged);
       })
     );
   }
 
-  /** ✅ Update Profile (new) */
-  updateProfile(firstName?: string, lastName?: string, phoneNumber?: string): Observable<User> {
+  /** ✅ Update Profile */
+  updateProfile(
+    firstName?: string,
+    lastName?: string,
+    phoneNumber?: string
+  ): Observable<User> {
     const body: any = { firstName, lastName, phoneNumber };
-    // remove undefined values so we only send what user changed
     Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
 
     return this.http.put<User>(`${this.api}/update`, body).pipe(
@@ -121,16 +145,21 @@ export class AuthService {
     );
   }
 
-  /** ✅ Upload/replace profile image (new) */
+  /** ✅ Upload/replace profile image */
   uploadProfileImage(file: File): Observable<{ imageUrl: string }> {
     const form = new FormData();
     form.append('File', file);
-    return this.http.post<{ imageUrl: string }>(`${this.api}/upload-profile-image`, form).pipe(
-      tap(res => {
-        const merged: User = { ...(this.currentUser || {id: 0, username: '', email: '' }), profileImageUrl: res.imageUrl };
-        this.writeUser(merged);
-      })
-    );
+    return this.http
+      .post<{ imageUrl: string }>(`${this.api}/upload-profile-image`, form)
+      .pipe(
+        tap(res => {
+          const merged: User = {
+            ...(this.currentUser || { id: 0, username: '', email: '' }),
+            profileImageUrl: res.imageUrl
+          };
+          this.writeUser(merged);
+        })
+      );
   }
 
   /** ✅ Logout */

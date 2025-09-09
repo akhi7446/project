@@ -1,18 +1,17 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
-export const adminGuard: CanActivateFn = () => {
+export const adminGuard: CanActivateFn = (): boolean | UrlTree => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  const user = auth.currentUser; // safely access current user
-  const isAdmin = user && user.role === 'Admin';
+  const user = auth.currentUser;
 
-  if (isAdmin) {
-    return true;
+  if (user && user.role?.toLowerCase() === 'admin') {
+    return true; // ✅ allow admin
   }
 
-  router.navigate(['/']);
-  return false;
+  console.warn('⛔ Access denied. Admin role required.', user);
+  return router.createUrlTree(['/']); // ✅ safer redirect
 };

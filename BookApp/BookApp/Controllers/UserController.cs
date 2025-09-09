@@ -164,7 +164,6 @@ namespace BookApp.Api.Controllers
             var userId = int.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
             var user = await _userService.UpdateProfileAsync(userId, dto);
 
-            // Return same shape as GetProfile with absolute image URL (to match your current behavior)
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
             var profileImageUrl = string.IsNullOrEmpty(user.ProfileImageUrl)
                 ? null
@@ -182,5 +181,27 @@ namespace BookApp.Api.Controllers
             });
         }
 
+        // 🔹 Promote user to Author (Admin only)
+        [HttpPost("{userId}/promote-to-author")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> PromoteToAuthor(int userId)
+        {
+            try
+            {
+                var user = await _userService.PromoteToAuthorAsync(userId);
+
+                return Ok(new
+                {
+                    message = $"{user.Username} has been promoted to Author",
+                    user.Id,
+                    user.Username,
+                    user.Role
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

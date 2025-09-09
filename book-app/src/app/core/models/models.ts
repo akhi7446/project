@@ -5,7 +5,7 @@ export interface User {
   lastName?: string;
   email?: string;
   phoneNumber?: string;
-  role?: 'User' | 'Admin' | 'Author'; // include Author since backend has it
+  role?: 'User' | 'Author' | 'Admin'; // include Author since backend has it
   token?: string;
   profileImageUrl?: string | null;
 }

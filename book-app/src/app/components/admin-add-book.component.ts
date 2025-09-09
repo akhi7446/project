@@ -1,129 +1,87 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { BookService } from '../core/services/book.service';
-import { Book, Author, Category } from '../core/models/models';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-admin-add-book',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="card" style="max-width:720px; margin:2rem auto; padding:1.2rem;">
-      <h3>Add a new book</h3>
-      <div class="space"></div>
-      <form (ngSubmit)="save()">
-        <label>Title</label>
-        <input class="input" [(ngModel)]="model.title" name="title" required />
-        <div class="space"></div>
+    <div class="card" style="max-width:640px; margin:2rem auto; padding:1.5rem;">
+      <h2>Add New Book (Admin)</h2>
+      <form (ngSubmit)="onSubmit()" #bookForm="ngForm">
 
+        <label>Title *</label>
+        <input class="input" name="title" [(ngModel)]="book.title" required />
+
+        <div class="space"></div>
+        <label>Author *</label>
+        <input class="input" name="authorName" [(ngModel)]="book.authorName" required />
+
+        <div class="space"></div>
         <label>Description</label>
-        <textarea
-          class="input"
-          [(ngModel)]="model.description"
-          name="description"
-          rows="4"
-        ></textarea>
-        <div class="space"></div>
+        <textarea class="input" name="description" [(ngModel)]="book.description"></textarea>
 
-        <div class="grid grid-2">
-          <div>
-            <label>Price</label>
-            <input
-              class="input"
-              type="number"
-              [(ngModel)]="model.price"
-              name="price"
-              required
-            />
-          </div>
-          <div>
-            <label>Genre</label>
-            <input class="input" [(ngModel)]="model.genre" name="genre" />
-          </div>
-        </div>
         <div class="space"></div>
+        <label>Genre</label>
+        <input class="input" name="genre" [(ngModel)]="book.genre" />
 
-        <div class="grid grid-2">
-          <div>
-            <label>Author</label>
-            <select class="input" [(ngModel)]="model.authorId" name="authorId" required>
-              <option value="">-- Select Author --</option>
-              <option *ngFor="let a of authors" [value]="a.id">{{ a.name }}</option>
-            </select>
-          </div>
-          <div>
-            <label>Category</label>
-            <select class="input" [(ngModel)]="model.categoryId" name="categoryId" required>
-              <option value="">-- Select Category --</option>
-              <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
-            </select>
-          </div>
-        </div>
         <div class="space"></div>
+        <label>Price</label>
+        <input type="number" class="input" name="price" [(ngModel)]="book.price" required min="0" />
 
-        <label>Image URL</label>
-        <input
-          class="input"
-          [(ngModel)]="model.imageUrl"
-          name="imageUrl"
-          placeholder="https://..."
-        />
         <div class="space"></div>
+        <label>Cover Image</label>
+        <input type="file" (change)="onFileSelected($event)" />
 
-        <button class="btn" type="submit" style="width:100%;">Save</button>
+        <div class="space"></div>
+        <button class="btn" type="submit" [disabled]="bookForm.invalid">Add Book</button>
       </form>
     </div>
-  `,
+  `
 })
-export class AdminAddBookComponent implements OnInit {
-  model: Partial<Book> = {
+export class AdminAddBookComponent {
+  book = {
     title: '',
+    authorName: '',
     description: '',
-    price: 0,
     genre: '',
-    authorId: undefined,
-    categoryId: undefined,
-    imageUrl: '',
+    price: 0
   };
 
-  authors: Author[] = [];
-  categories: Category[] = [];
+  selectedFile: File | null = null;
 
-  constructor(private book: BookService, private router: Router) {}
+  constructor(private bookService: BookService, private router: Router) {}
 
-  ngOnInit() {
-    this.loadAuthors();
-    this.loadCategories();
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.selectedFile = input.files[0];
+    }
   }
 
-  loadAuthors() {
-    this.book.getAuthors().subscribe({
-      next: (res) => (this.authors = res),
-      error: (err) => console.error('Failed to load authors', err),
-    });
-  }
-
-  loadCategories() {
-    this.book.getCategories().subscribe({
-      next: (res) => (this.categories = res),
-      error: (err) => console.error('Failed to load categories', err),
-    });
-  }
-
-  save() {
-    if (!this.model.authorId || !this.model.categoryId) {
-      alert('Please select an author and a category');
-      return;
+  onSubmit() {
+    const formData = new FormData();
+    formData.append('title', this.book.title);
+    formData.append('authorName', this.book.authorName);
+    formData.append('description', this.book.description);
+    formData.append('genre', this.book.genre);
+    formData.append('price', this.book.price.toString());
+    if (this.selectedFile) {
+      formData.append('coverImage', this.selectedFile);
     }
 
-    this.book.create(this.model).subscribe({
-      next: () => this.router.navigate(['/books']),
-      error: (err) => {
-        console.error(err);
-        alert('Failed to add book');
+    this.bookService.create(formData).subscribe({
+      next: () => {
+        alert('✅ Book added successfully!');
+        this.router.navigate(['/admin']); // better redirect for Admins
       },
+      error: (err) => {
+        console.error('Book creation failed', err);
+        alert('❌ Failed to add book. Please try again.');
+      }
     });
   }
 }
