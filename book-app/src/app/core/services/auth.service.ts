@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, Signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, switchMap, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -8,21 +8,24 @@ import { User } from '../models/models';
 export class AuthService {
   private api = `${environment.apiUrl}/User`;
 
+  // 🔹 Signal for reactive user
   private _user = signal<User | null>(this.readUser());
-  readonly user = this._user.asReadonly();
+  readonly user: Signal<User | null> = this._user.asReadonly();
 
   constructor(private http: HttpClient) {}
 
+  /** 🔹 Get current user snapshot */
   get currentUser(): User | null {
     return this._user();
   }
 
-  /** 🔹 LocalStorage helpers */
+  /** 🔹 Read user from localStorage */
   private readUser(): User | null {
     const raw = localStorage.getItem('user');
     return raw ? (JSON.parse(raw) as User) : null;
   }
 
+  /** 🔹 Write user to localStorage + update signal */
   private writeUser(u: User | null) {
     if (u) {
       localStorage.setItem('user', JSON.stringify(u));
@@ -33,7 +36,7 @@ export class AuthService {
     }
   }
 
-  /** 🔹 Update current user */
+  /** 🔹 Update current user manually */
   updateCurrentUser(user: User) {
     this.writeUser(user);
   }
@@ -41,12 +44,8 @@ export class AuthService {
   /** ✅ Login */
   login(username: string, password: string): Observable<User> {
     const body = { username, password };
-    console.log('Sending login request:', body, 'to', `${this.api}/login`);
-
     return this.http.post<{ token: string }>(`${this.api}/login`, body).pipe(
       switchMap(res => {
-        console.log('Login response:', res);
-
         // Minimal user with token
         const user: User = {
           id: 0,
@@ -60,13 +59,9 @@ export class AuthService {
 
         this.writeUser(user);
 
-        // 🔹 Fetch profile right after login
+        // Fetch profile right after login
         return this.getProfile().pipe(
-          map(() => {
-            const finalUser = this.currentUser!;
-            console.log('Final logged in user with role:', finalUser);
-            return finalUser;
-          })
+          map(() => this.currentUser!)
         );
       })
     );
@@ -90,21 +85,19 @@ export class AuthService {
     formData.append('FirstName', firstName);
     formData.append('LastName', lastName);
     formData.append('PhoneNumber', phoneNumber);
-    formData.append('Role', role); // backend requires this
-    if (imageFile) {
-      formData.append('File', imageFile, imageFile.name);
-    }
+    formData.append('Role', role);
+    if (imageFile) formData.append('File', imageFile, imageFile.name);
 
     return this.http
       .post<{ message: string; user: User }>(`${this.api}/register`, formData)
       .pipe(
-        map(res => res.user), // unwrap the "user"
+        map(res => res.user),
         tap(u => {
           const enriched: User = {
             ...u,
             phoneNumber: u.phoneNumber || phoneNumber,
             profileImageUrl: u.profileImageUrl || null,
-            role: (u.role as 'User' | 'Author') || role || 'User'
+            role: (u.role as 'User' | 'Author') || role
           };
           this.writeUser(enriched);
         })
@@ -115,14 +108,8 @@ export class AuthService {
   getProfile(): Observable<User> {
     return this.http.get<User>(`${this.api}/profile`).pipe(
       tap(u => {
-        console.log('Profile API returned', u);
-
-        // Merge profile with existing token
         const merged: User = { ...(this.currentUser || {}), ...u };
-
-        // Ensure role is saved correctly
         merged.role = (u.role as 'User' | 'Author') || this.currentUser?.role || 'User';
-
         this.writeUser(merged);
       })
     );
@@ -154,7 +141,7 @@ export class AuthService {
       .pipe(
         tap(res => {
           const merged: User = {
-            ...(this.currentUser || { id: 0, username: '', email: '' }),
+            ...(this.currentUser || { id: 0, username: '', email: '', token: '' }),
             profileImageUrl: res.imageUrl
           };
           this.writeUser(merged);

@@ -1,6 +1,7 @@
 ﻿using BookApp.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace BookApp.Api.Controllers
 {
@@ -16,11 +17,28 @@ namespace BookApp.Api.Controllers
             _cartService = cartService;
         }
 
+        // Helper: safe user id extraction
+        private int GetUserId()
+        {
+            // try several common claim types
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier) ??
+                        User.FindFirst("sub") ??
+                        User.FindFirst("id") ??
+                        User.FindFirst("nameid");
+
+            if (claim == null || !int.TryParse(claim.Value, out var id))
+            {
+                throw new UnauthorizedAccessException("User id not found in token");
+            }
+
+            return id;
+        }
+
         // 🔹 Get cart items for logged-in user
         [HttpGet]
         public async Task<IActionResult> GetCart()
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == "id").Value);
+            var userId = GetUserId();
             var cartItems = await _cartService.GetCartAsync(userId);
             return Ok(cartItems);
         }
@@ -29,7 +47,7 @@ namespace BookApp.Api.Controllers
         [HttpPost("{bookId}")]
         public async Task<IActionResult> AddToCart(int bookId, [FromQuery] int quantity = 1)
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == "id").Value);
+            var userId = GetUserId();
             var success = await _cartService.AddToCartAsync(userId, bookId, quantity);
 
             if (!success) return BadRequest(new { message = "Unable to add book to cart" });
@@ -40,7 +58,7 @@ namespace BookApp.Api.Controllers
         [HttpDelete("{bookId}")]
         public async Task<IActionResult> RemoveFromCart(int bookId)
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == "id").Value);
+            var userId = GetUserId();
             var success = await _cartService.RemoveFromCartAsync(userId, bookId);
 
             if (!success) return NotFound(new { message = "Book not found in cart" });
@@ -51,7 +69,7 @@ namespace BookApp.Api.Controllers
         [HttpDelete("clear")]
         public async Task<IActionResult> ClearCart()
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == "id").Value);
+            var userId = GetUserId();
             var success = await _cartService.ClearCartAsync(userId);
 
             if (!success) return BadRequest(new { message = "Unable to clear cart" });

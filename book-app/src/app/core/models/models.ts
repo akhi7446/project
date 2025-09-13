@@ -31,15 +31,20 @@ export interface Book {
   categoryId: number;
   categoryName?: string;  // ✅ added
   imageUrl?: string;      // ✅ optional
+  samplePdfUrl?: string;
   isApproved: boolean;    // ✅ added
   isFavorite?: boolean;   // frontend only
 }
 
 export interface CartItem {
-  id: number;
   bookId: number;
+  title: string;
+  authorName: string;
+  categoryName: string;
+  genre: string;
+  price: number;
   quantity: number;
-  book?: Book;
+  imageUrl: string;
 }
 
 export interface Favorite {

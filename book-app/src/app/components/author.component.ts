@@ -9,7 +9,7 @@ import { AuthService } from '../core/services/auth.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="card" style="max-width:800px; margin:2rem auto; padding:1.5rem;">
+    <div class="card" style="max-width:900px; margin:2rem auto; padding:1.5rem;">
       <h2>Author Dashboard</h2>
       <p>Welcome, {{ user?.username }}!</p>
 
@@ -23,15 +23,43 @@ import { AuthService } from '../core/services/auth.service';
         <p>No submissions yet.</p>
       </div>
 
-      <ul *ngIf="myRequests.length > 0">
-        <li *ngFor="let req of myRequests" style="margin:0.5rem 0; padding:0.5rem; border:1px solid #ddd; border-radius:6px;">
-          <strong>{{ req.title }}</strong> - {{ req.genre }} - 💲{{ req.price }}
-          <br />
-          <small>Status: <b>{{ req.status }}</b></small>
-        </li>
-      </ul>
+      <div *ngIf="myRequests.length > 0">
+        <div *ngFor="let req of myRequests" class="book-card">
+          <img
+            *ngIf="req.coverImageUrl; else noCover"
+            [src]="normalizeUrl(req.coverImageUrl)"
+            alt="Cover"
+          />
+          <ng-template #noCover>
+            <div class="no-cover">No Image</div>
+          </ng-template>
+
+          <div class="book-info">
+            <strong>{{ req.title }}</strong> - {{ req.genre }} - 💲{{ req.price }}
+            <p>Status: 
+              <span [ngClass]="{
+                'status-pending': req.status === 'Pending',
+                'status-approved': req.status === 'Approved',
+                'status-rejected': req.status === 'Rejected'
+              }">{{ req.status }}</span>
+            </p>
+            <p *ngIf="req.samplePdfUrl">
+              <a [href]="normalizeUrl(req.samplePdfUrl)" target="_blank">View Sample PDF</a>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
-  `
+  `,
+  styles: [`
+    .book-card { display: flex; gap: 1rem; margin: 0.5rem 0; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; align-items: center; }
+    .book-card img { width: 80px; height: 100px; object-fit: cover; border-radius: 4px; }
+    .no-cover { width: 80px; height: 100px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; color: #9ca3af; border-radius: 4px; font-size: 12px; }
+    .book-info { flex: 1; }
+    .status-pending { color: orange; font-weight: bold; }
+    .status-approved { color: green; font-weight: bold; }
+    .status-rejected { color: red; font-weight: bold; }
+  `]
 })
 export class AuthorDashboardComponent implements OnInit {
   user: any;
@@ -47,7 +75,6 @@ export class AuthorDashboardComponent implements OnInit {
     this.user = this.auth.user();
 
     if (this.user) {
-      // ✅ call backend /api/book/my-requests
       this.bookService.getMyBookRequests().subscribe({
         next: (requests) => {
           this.myRequests = requests;
@@ -56,10 +83,19 @@ export class AuthorDashboardComponent implements OnInit {
           console.error('Failed to load my submissions', err);
         }
       });
+    } else {
+      this.router.navigate(['/login']);
     }
   }
 
   goToSubmitBook() {
     this.router.navigate(['/author/submit-book']);
+  }
+
+  // Ensures proper full URL for images or PDFs
+  normalizeUrl(path: string): string {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return `https://localhost:7000${path}`;
   }
 }

@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,7 +49,6 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtSettings.Issuer,
         ValidAudience = jwtSettings.Audience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtSettings.Key)),
-
         RoleClaimType = ClaimTypes.Role,
         NameClaimType = ClaimTypes.NameIdentifier
     };
@@ -67,7 +67,13 @@ builder.Services.AddCors(options =>
 #endregion
 
 #region Controllers & Swagger
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.WriteIndented = true;
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -78,7 +84,7 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1"
     });
 
-    // ✅ Add JWT bearer support
+    // JWT Bearer support in Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
@@ -103,7 +109,7 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // ✅ Enable file upload in Swagger
+    // File upload support
     c.OperationFilter<FileUploadOperationFilter>();
 });
 #endregion
@@ -121,22 +127,19 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// ✅ Serve static files from wwwroot
+// Serve static files from wwwroot (default: maps /wwwroot/**)
 app.UseStaticFiles();
 
-// ✅ Serve static files from "uploads" folder
-var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
-if (!Directory.Exists(uploadsPath))
+// Ensure uploads folders exist
+var uploadsRoot = Path.Combine(app.Environment.WebRootPath, "uploads");
+if (!Directory.Exists(uploadsRoot))
 {
-    Directory.CreateDirectory(uploadsPath); // ensure folder exists
+    Directory.CreateDirectory(uploadsRoot);
 }
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadsPath),
-    RequestPath = "/uploads"
-});
+Directory.CreateDirectory(Path.Combine(uploadsRoot, "covers"));
+Directory.CreateDirectory(Path.Combine(uploadsRoot, "pdfs"));
 
-// ✅ Apply CORS before authentication
+// Apply CORS
 app.UseCors("AllowAngular");
 
 app.UseAuthentication();
@@ -150,7 +153,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Apply migrations if not already applied
+    // Apply migrations
     db.Database.Migrate();
 
     // Seed default Admin user if none exists
@@ -163,7 +166,7 @@ using (var scope = app.Services.CreateScope())
             Username = "admin",
             PhoneNumber = "0000000000",
             Email = "admin@bookapp.com",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"), // 🔑 default password
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
             Role = "Admin"
         };
 

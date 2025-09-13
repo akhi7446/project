@@ -1,9 +1,11 @@
+// src/app/components/dashboard.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FavoriteService } from '../core/services/favorite.service';
 import { RecommendationService } from '../core/services/recommendation.service';
 import { AuthService } from '../core/services/auth.service';
-import { Favorite, Recommendation, ExternalBook, User } from '../core/models/models';
+import { BookService } from '../core/services/book.service';
+import { Book, Recommendation, ExternalBook, User, Favorite } from '../core/models/models';
 import { RouterModule, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs';
@@ -15,7 +17,7 @@ import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs'
   template: `
     <div class="dashboard">
 
-      <!-- ✅ Welcome Banner -->
+      <!-- Welcome Banner -->
       <div class="welcome-banner">
         <img 
           *ngIf="currentUser?.profileImageUrl; else defaultAvatar" 
@@ -34,8 +36,8 @@ import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs'
         <!-- Favorites -->
         <div class="card">
           <h3>❤️ Favorites</h3>
-          <ul *ngIf="favorites.length; else emptyFav">
-            <li *ngFor="let f of favorites">{{ f.book?.title }}</li>
+          <ul *ngIf="favoriteBooks.length; else emptyFav">
+            <li *ngFor="let b of favoriteBooks">{{ b.title }}</li>
           </ul>
           <ng-template #emptyFav><p class="muted">No favorites yet.</p></ng-template>
           <a class="link" routerLink="/favorites">View all →</a>
@@ -61,11 +63,11 @@ import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs'
         </div>
       </div>
 
-      <!-- 📚 Book Explorer (Full Width) -->
+      <!-- Book Explorer -->
       <div class="card full-width">
         <h3>📚 Book Explorer</h3>
 
-        <!-- 🔎 Search Bar -->
+        <!-- Search Bar -->
         <div class="search-bar">
           <input
             type="text"
@@ -88,11 +90,7 @@ import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs'
              target="_blank"
              rel="noopener noreferrer"
              class="book-card">
-            <img
-              *ngIf="b.coverUrl; else noCover"
-              [src]="b.coverUrl"
-              [alt]="b.title"
-            />
+            <img *ngIf="b.coverUrl; else noCover" [src]="b.coverUrl" [alt]="b.title" />
             <ng-template #noCover>
               <div class="no-cover">No Image</div>
             </ng-template>
@@ -128,7 +126,7 @@ import { debounceTime, distinctUntilChanged, Subject, Subscription } from 'rxjs'
   `]
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-  favorites: Favorite[] = [];
+  favoriteBooks: Book[] = [];
   recs: Recommendation[] = [];
   openLibRecs: ExternalBook[] = [];
   authors: string[] = [];
@@ -143,6 +141,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   constructor(
     private favoriteService: FavoriteService,
     private recService: RecommendationService,
+    private bookService: BookService,
     private auth: AuthService
   ) {}
 
@@ -150,35 +149,44 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.currentUser = this.auth.currentUser;
 
     // Debounced search handler
-    const sub = this.searchQueryChanged
-      .pipe(debounceTime(500), distinctUntilChanged())
-      .subscribe(query => {
-        if (query.trim()) this.loadOpenLibRecs(query.trim());
-      });
-    this.subs.push(sub);
+    this.subs.push(
+      this.searchQueryChanged
+        .pipe(debounceTime(500), distinctUntilChanged())
+        .subscribe(query => {
+          if (query.trim()) this.loadOpenLibRecs(query.trim());
+        })
+    );
 
-    // Load favorites & authors
-    this.favoriteService.getFavorites().subscribe({
-      next: favs => {
-        this.favorites = favs;
-        const set = new Set<string>();
-        favs.forEach(f => f.book?.authorName && set.add(f.book.authorName));
-        this.authors = [...set];
-        const firstQuery = this.authors.length > 0 ? this.authors[0] : 'fiction';
-        this.loadOpenLibRecs(firstQuery);
-      },
-      error: () => {
-        this.favorites = [];
-        this.authors = [];
-        this.loadOpenLibRecs('fiction');
-      }
-    });
+    // Load favorites (extract embedded Book)
+    this.subs.push(
+      this.favoriteService.getFavorites().subscribe({
+        next: (favorites: Favorite[]) => {
+          this.favoriteBooks = favorites
+            .map(f => f.book!)
+            .filter((b): b is Book => !!b);
 
-    // Local recommendations
-    this.recService.getRecommendations().subscribe({
-      next: res => (this.recs = res),
-      error: () => (this.recs = [])
-    });
+          const set = new Set<string>();
+          this.favoriteBooks.forEach(b => b.authorName && set.add(b.authorName));
+          this.authors = [...set];
+
+          const firstQuery = this.authors.length > 0 ? this.authors[0] : 'fiction';
+          this.loadOpenLibRecs(firstQuery);
+        },
+        error: () => {
+          this.favoriteBooks = [];
+          this.authors = [];
+          this.loadOpenLibRecs('fiction');
+        }
+      })
+    );
+
+    // Load local recommendations
+    this.subs.push(
+      this.recService.getRecommendations().subscribe({
+        next: res => (this.recs = res),
+        error: () => (this.recs = [])
+      })
+    );
   }
 
   ngOnDestroy(): void {

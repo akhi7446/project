@@ -6,12 +6,14 @@ import { FavoritesComponent } from './components/favorites.component';
 import { LoginComponent } from './components/login.component';
 import { RegisterComponent } from './components/register.component';
 import { ProfileComponent } from './components/profile.component';
-import { AdminAddBookComponent } from './components/admin-add-book.component';
-import { authGuard } from './core/guards/auth.guard';
-import { adminGuard } from './core/guards/admin.guard';
-import { AuthorDashboardComponent } from './components/author.component'; // ✅ FIXED import
+import { AuthorDashboardComponent } from './components/author.component';
 import { AdminBookRequestsComponent } from './components/admin-book-requests.component';
 import { AuthorSubmitBookComponent } from './components/author-submit-book.component';
+
+import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
+import { authorGuard } from './core/guards/author.guard'; // ✅ added
+import { AdminDashboardComponent } from './components/admin-dashboard.component';
 
 export const routes: Routes = [
   { path: '', component: DashboardComponent }, // default -> dashboard
@@ -21,12 +23,12 @@ export const routes: Routes = [
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
 
   // 🔹 Admin-only routes
-  { path: 'admin/add-book', component: AdminAddBookComponent, canActivate: [adminGuard] },
+  { path: 'admin/dashboard', component: AdminDashboardComponent, canActivate: [adminGuard] },
   { path: 'admin/requests', component: AdminBookRequestsComponent, canActivate: [adminGuard] },
 
   // 🔹 Author-only routes
-  { path: 'author', component: AuthorDashboardComponent },
-  { path: 'author/submit-book', component: AuthorSubmitBookComponent },
+  { path: 'author', component: AuthorDashboardComponent, canActivate: [authorGuard] },
+  { path: 'author/submit-book', component: AuthorSubmitBookComponent, canActivate: [authorGuard] },
 
   // 🔹 Auth routes
   { path: 'login', component: LoginComponent },

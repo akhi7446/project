@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250907171544_foour")]
-    partial class foour
+    [Migration("20250913045324_final")]
+    partial class final
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,9 +34,17 @@ namespace BookApp.Api.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Authors");
                 });
@@ -71,6 +79,9 @@ namespace BookApp.Api.Migrations
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("SamplePdfUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -96,6 +107,9 @@ namespace BookApp.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CoverImageUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -113,6 +127,9 @@ namespace BookApp.Api.Migrations
 
                     b.Property<int>("RequestedById")
                         .HasColumnType("int");
+
+                    b.Property<string>("SamplePdfUrl")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -146,16 +163,11 @@ namespace BookApp.Api.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("UserId1")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("BookId");
 
                     b.HasIndex("UserId");
-
-                    b.HasIndex("UserId1");
 
                     b.ToTable("CartItems");
                 });
@@ -170,9 +182,12 @@ namespace BookApp.Api.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Categories");
                 });
@@ -191,16 +206,11 @@ namespace BookApp.Api.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("UserId1")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("BookId");
 
                     b.HasIndex("UserId");
-
-                    b.HasIndex("UserId1");
 
                     b.ToTable("Favorites");
                 });
@@ -252,6 +262,17 @@ namespace BookApp.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("BookApp.Api.Models.Author", b =>
+                {
+                    b.HasOne("BookApp.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BookApp.Api.Models.Book", b =>
                 {
                     b.HasOne("BookApp.Api.Models.Author", "Author")
@@ -274,7 +295,7 @@ namespace BookApp.Api.Migrations
             modelBuilder.Entity("BookApp.Api.Models.BookRequest", b =>
                 {
                     b.HasOne("BookApp.Api.Models.User", "RequestedBy")
-                        .WithMany()
+                        .WithMany("BookRequests")
                         .HasForeignKey("RequestedById")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -291,14 +312,10 @@ namespace BookApp.Api.Migrations
                         .IsRequired();
 
                     b.HasOne("BookApp.Api.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BookApp.Api.Models.User", null)
                         .WithMany("CartItems")
-                        .HasForeignKey("UserId1");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Book");
 
@@ -310,18 +327,14 @@ namespace BookApp.Api.Migrations
                     b.HasOne("BookApp.Api.Models.Book", "Book")
                         .WithMany()
                         .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("BookApp.Api.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BookApp.Api.Models.User", null)
                         .WithMany("Favorites")
-                        .HasForeignKey("UserId1");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Book");
 
@@ -340,6 +353,8 @@ namespace BookApp.Api.Migrations
 
             modelBuilder.Entity("BookApp.Api.Models.User", b =>
                 {
+                    b.Navigation("BookRequests");
+
                     b.Navigation("CartItems");
 
                     b.Navigation("Favorites");

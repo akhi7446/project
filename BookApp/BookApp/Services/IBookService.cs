@@ -6,7 +6,7 @@ namespace BookApp.Api.Services
     public interface IBookService
     {
         // ================================
-        // 📌 Core CRUD (Approved Books)
+        // 📌 Core CRUD (All Books)
         // ================================
         Task<IEnumerable<BookDto>> GetAllAsync();
         Task<BookDto?> GetByIdAsync(int id);
@@ -18,21 +18,26 @@ namespace BookApp.Api.Services
         // 📌 Queries (Approved Books only)
         // ================================
         Task<IEnumerable<BookDto>> SearchAsync(string query);
-        Task<IEnumerable<BookDto>> FilterAsync(string? author, string? category, string? genre, decimal? minPrice, decimal? maxPrice);
+        Task<IEnumerable<BookDto>> FilterAsync(
+            string? author,
+            string? category,
+            string? genre,
+            decimal? minPrice,
+            decimal? maxPrice);
 
         // ================================
         // 📌 Admin-only Actions
         // ================================
-        Task<Book?> ApproveAsync(int id);
+        Task<Book?> ApproveAsync(int id); // ✅ Approves book (one-way)
+        Task<Book?> UpdateApprovalStatusAsync(int id, bool isApproved); // ✅ Toggle status true/false
 
         // ================================
         // 📌 Book Requests (Author submits, Admin reviews)
         // ================================
-        Task<BookRequest> SubmitRequestAsync(BookRequest request);   // Author → submit book request
-        Task<IEnumerable<BookRequest>> GetPendingRequestsAsync();    // Admin → get pending requests
-        Task<Book?> ApproveRequestAsync(int requestId);              // Admin → approve request
-        Task<bool> RejectRequestAsync(int requestId);                // Admin → reject request
-        Task<IEnumerable<BookRequest>> GetRequestsByUserIdAsync(int userId);
-
+        Task<BookRequestDto> SubmitRequestAsync(BookRequestDto request);
+        Task<IEnumerable<BookRequestDto>> GetPendingRequestsAsync();
+        Task<Book?> ApproveRequestAsync(int requestId);
+        Task<bool> RejectRequestAsync(int requestId);
+        Task<IEnumerable<BookRequestDto>> GetRequestsByUserIdAsync(int userId);
     }
 }

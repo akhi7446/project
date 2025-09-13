@@ -1,7 +1,7 @@
 [
   {
     "ContainingType": "BookApp.Api.Controllers.BookController",
-    "Method": "GetAll",
+    "Method": "GetApproved",
     "RelativePath": "api/Book",
     "HttpMethod": "GET",
     "IsController": true,
@@ -80,6 +80,37 @@
   },
   {
     "ContainingType": "BookApp.Api.Controllers.BookController",
+    "Method": "ToggleStatus",
+    "RelativePath": "api/Book/{id}/status",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "BookApp.Api.Models.DTOs.StatusUpdateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "BookApp.Api.Controllers.BookController",
+    "Method": "GetAllForAdmin",
+    "RelativePath": "api/Book/all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "BookApp.Api.Controllers.BookController",
     "Method": "Filter",
     "RelativePath": "api/Book/filter",
     "HttpMethod": "GET",
@@ -126,16 +157,6 @@
   },
   {
     "ContainingType": "BookApp.Api.Controllers.BookController",
-    "Method": "GetPendingRequests",
-    "RelativePath": "api/Book/requests",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "BookApp.Api.Controllers.BookController",
     "Method": "ApproveRequest",
     "RelativePath": "api/Book/requests/{id}/approve",
     "HttpMethod": "PUT",
@@ -168,6 +189,16 @@
   },
   {
     "ContainingType": "BookApp.Api.Controllers.BookController",
+    "Method": "GetPendingRequests",
+    "RelativePath": "api/Book/requests/pending",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "BookApp.Api.Controllers.BookController",
     "Method": "Search",
     "RelativePath": "api/Book/search",
     "HttpMethod": "GET",
@@ -184,15 +215,61 @@
   },
   {
     "ContainingType": "BookApp.Api.Controllers.BookController",
-    "Method": "SubmitRequest",
+    "Method": "SubmitRequestForm",
     "RelativePath": "api/Book/submit",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "request",
-        "Type": "BookApp.Api.Models.BookRequest",
+        "Name": "Title",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AuthorName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Description",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Genre",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Price",
+        "Type": "System.Decimal",
+        "IsRequired": false
+      },
+      {
+        "Name": "CoverImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "SamplePdf",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "BookApp.Api.Controllers.BookController",
+    "Method": "SubmitRequestJson",
+    "RelativePath": "api/Book/submit-json",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "BookApp.Api.Models.DTOs.BookRequestDto",
         "IsRequired": true
       }
     ],

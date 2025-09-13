@@ -1,6 +1,7 @@
 ﻿using BookApp.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace BookApp.Api.Controllers
 {
@@ -16,11 +17,26 @@ namespace BookApp.Api.Controllers
             _favoriteService = favoriteService;
         }
 
+        private int GetUserId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier) ??
+                        User.FindFirst("sub") ??
+                        User.FindFirst("id") ??
+                        User.FindFirst("nameid");
+
+            if (claim == null || !int.TryParse(claim.Value, out var id))
+            {
+                throw new UnauthorizedAccessException("User id not found in token");
+            }
+
+            return id;
+        }
+
         // 🔹 Get all favorites for logged-in user
         [HttpGet]
         public async Task<IActionResult> GetFavorites()
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == "id").Value);
+            var userId = GetUserId();
             var favorites = await _favoriteService.GetFavoritesAsync(userId);
             return Ok(favorites);
         }
@@ -29,7 +45,7 @@ namespace BookApp.Api.Controllers
         [HttpPost("{bookId}")]
         public async Task<IActionResult> AddFavorite(int bookId)
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == "id").Value);
+            var userId = GetUserId();
             var success = await _favoriteService.AddFavoriteAsync(userId, bookId);
 
             if (!success) return BadRequest(new { message = "Already in favorites" });
@@ -40,7 +56,7 @@ namespace BookApp.Api.Controllers
         [HttpDelete("{bookId}")]
         public async Task<IActionResult> RemoveFavorite(int bookId)
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == "id").Value);
+            var userId = GetUserId();
             var success = await _favoriteService.RemoveFavoriteAsync(userId, bookId);
 
             if (!success) return NotFound(new { message = "Book not found in favorites" });

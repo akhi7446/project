@@ -17,7 +17,11 @@
         public string? Description { get; set; }
         public string Genre { get; set; }
         public decimal Price { get; set; }
+
         public string? ImageUrl { get; set; }
+
+        // 🔥 New field: sample PDF (preview 5–6 pages)
+        public string? SamplePdfUrl { get; set; }
 
         // 🔹 Admin approval flag
         public bool IsApproved { get; set; }
